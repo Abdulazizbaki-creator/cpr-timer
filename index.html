@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#080b14">
+<title>CPR Timer — Resuscitation Companion</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#080b14;--panel:#111727;--panel2:#18203a;--line:#26304d;
+  --text:#e8ecf6;--muted:#8a94b0;
+  --red:#ff4d5e;--amber:#ffb547;--green:#3ddc97;--blue:#5aa9ff;--violet:#a98bff;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:"Inter",system-ui,sans-serif}
+body{max-width:520px;margin:0 auto;padding:12px 12px 150px;min-height:100vh}
+button{font-family:inherit;color:inherit;border:0;cursor:pointer}
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace;direction:ltr;unicode-bidi:isolate}
+
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.tag{font-weight:700;color:var(--amber);font-size:14px;letter-spacing:.5px}
+.clock{color:var(--muted);font-size:13px}
+.pill{background:var(--panel);border:1px solid var(--line);padding:6px 10px;border-radius:999px;font-size:12px}
+.pill.off{color:var(--muted)}
+
+.hero{background:linear-gradient(180deg,#121a30,#0d1324);border:1px solid var(--line);border-radius:20px;padding:18px;text-align:center}
+.hero .label{color:var(--muted);font-size:13px}
+.big{font-size:64px;font-weight:700;line-height:1.1;margin:4px 0 12px}
+.hero.running .big{color:var(--green)}
+.start{width:100%;padding:14px;border-radius:14px;font-size:18px;font-weight:700;background:var(--green);color:#04150d}
+.start.stop{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
+
+.sec{margin-top:14px}
+.sec h3{margin:0 0 8px;font-size:13px;color:var(--muted);font-weight:600}
+.rhythms{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.rh{padding:14px 4px;border-radius:12px;background:var(--panel);border:1px solid var(--line);font-weight:700;font-size:15px}
+.rh.shock{border-color:#5a2730}
+.rh.active{background:var(--violet);color:#120a2a;border-color:var(--violet)}
+.rh small{display:block;font-size:10px;font-weight:600;opacity:.75;margin-top:2px}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;text-align:left;position:relative;overflow:hidden}
+.card .t{font-size:13px;color:var(--muted);font-weight:600}
+.card .v{font-size:30px;font-weight:700;margin-top:4px}
+.card .n{position:absolute;top:10px;right:12px;background:var(--panel2);border-radius:999px;min-width:28px;padding:2px 8px;text-align:center;font-size:13px;font-weight:700}
+.card .bar{position:absolute;bottom:0;left:0;height:4px;background:currentColor;opacity:.8;transition:width .3s linear}
+.card.shockc{color:var(--amber)} .card.shockc .t{color:var(--amber)}
+.card.cpr{color:var(--blue)}
+.card.epi{color:var(--red)}
+.card.amio{color:var(--violet)}
+.card .v,.card .n{color:var(--text)}
+.card.due{animation:pulse 1s infinite}
+.card.due .v{color:var(--red)}
+@keyframes pulse{50%{box-shadow:0 0 0 3px var(--red) inset}}
+.card .sub{font-size:11px;color:var(--muted);margin-top:2px}
+
+.last{margin-top:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--muted);min-height:40px}
+.last b{color:var(--text)}
+
+nav.bottom{position:fixed;bottom:0;left:0;right:0;background:rgba(8,11,20,.96);backdrop-filter:blur(8px);border-top:1px solid var(--line);padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
+nav .row{max-width:520px;margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+nav .row.foot{grid-template-columns:repeat(4,1fr);margin-top:6px}
+nav button{background:var(--panel);border-radius:10px;padding:8px 2px;font-size:11px;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button span{font-size:17px}
+nav .foot button{flex-direction:row;justify-content:center;gap:6px;font-size:12px;padding:9px 2px}
+nav .foot .save{background:#3a1820;color:#ffb3bb}
+
+.sheet{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center;z-index:20}
+.sheet.open{display:flex}
+.sheet .box{background:var(--bg);border:1px solid var(--line);border-bottom:0;border-radius:20px 20px 0 0;width:100%;max-width:520px;max-height:88vh;overflow:auto;padding:16px 14px calc(18px + env(safe-area-inset-bottom))}
+.sheet h2{margin:0 0 4px;font-size:18px}
+.sheet p.hint{margin:0 0 12px;color:var(--muted);font-size:13px}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;text-align:left;width:100%}
+.item .nm{font-weight:700}
+.item .ds{font-size:12px;color:var(--muted);margin-top:2px}
+.doses{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.doses button{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px}
+.chips{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chips button{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 8px;font-size:14px}
+.ht{display:flex;justify-content:space-between;align-items:center}
+.ht .st{font-size:12px;padding:3px 10px;border-radius:999px;background:var(--panel2);color:var(--muted)}
+.ht .st.c{background:#3a3010;color:var(--amber)}
+.ht .st.a{background:#0f3324;color:var(--green)}
+textarea,input[type=text],input[type=number]{width:100%;background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:12px;font-family:inherit;font-size:15px}
+textarea{min-height:120px;resize:vertical}
+.actions{display:flex;gap:8px;margin-top:12px}
+.actions button{flex:1;padding:12px;border-radius:12px;background:var(--panel2);font-weight:600}
+.actions .pri{background:var(--blue);color:#06121f}
+.actions .dang{background:var(--red);color:#1d0408}
+.log{display:flex;flex-direction:column;gap:6px}
+.log .e{display:flex;gap:10px;background:var(--panel);border-radius:10px;padding:8px 10px;font-size:14px}
+.log .e .tm{color:var(--muted);font-size:12px;min-width:48px}
+.empty{color:var(--muted);text-align:center;padding:24px 0}
+.set{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.set .ins{display:flex;gap:6px;align-items:center;direction:ltr}
+.set input{width:64px;text-align:center}
+pre.rep{white-space:pre-wrap;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:12.5px;line-height:1.6;text-align:left;font-family:inherit}
+.credit{color:var(--muted);font-size:12px;text-align:center;margin-top:16px}
+.toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:8px 14px;border-radius:999px;font-size:13px;opacity:0;transition:.25s;z-index:40;pointer-events:none}
+.toast.show{opacity:1}
+.confirm .box{border-radius:20px;margin:auto;max-width:360px;border-bottom:1px solid var(--line)}
+.confirm{align-items:center}
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <div class="tag">⚡ INCIDENT <span id="incNo" class="mono"></span></div>
+    <div class="clock">Started: <span id="startClock" class="mono">--:--</span></div>
+  </div>
+  <button class="pill" id="audioBtn">🔊 AUDIO ON</button>
+</header>
+
+<section class="hero" id="hero">
+  <div class="label">Time since start of resuscitation</div>
+  <div class="big mono" id="elapsed">00:00</div>
+  <button class="start" id="startBtn">▶ Start Timer</button>
+</section>
+
+<section class="sec">
+  <h3>Rhythm</h3>
+  <div class="rhythms">
+    <button class="rh shock" data-r="VF">VF<small>Shockable</small></button>
+    <button class="rh shock" data-r="pVT">pVT<small>Shockable</small></button>
+    <button class="rh" data-r="PEA">PEA<small>Non-shockable</small></button>
+    <button class="rh" data-r="Asystole">ASYS<small>Non-shockable</small></button>
+  </div>
+</section>
+
+<section class="sec grid">
+  <button class="card shockc" id="shockBtn">
+    <div class="t">⚡ Shock</div>
+    <div class="v mono" id="shockLast">—</div>
+    <div class="sub">Since last shock</div>
+    <div class="n mono" id="shockN">0</div>
+  </button>
+  <button class="card cpr" id="cprBtn">
+    <div class="t">🫀 CPR Cycle</div>
+    <div class="v mono" id="cprT">02:00</div>
+    <div class="sub" id="cprSub">Tap to start a cycle</div>
+    <div class="n mono" id="cprN">0</div>
+    <div class="bar" id="cprBar" style="width:0"></div>
+  </button>
+  <button class="card epi" id="epiBtn">
+    <div class="t">💉 Give Epi 1mg</div>
+    <div class="v mono" id="epiT">04:00</div>
+    <div class="sub" id="epiSub">Tap when dose given</div>
+    <div class="n mono" id="epiN">0</div>
+    <div class="bar" id="epiBar" style="width:0"></div>
+  </button>
+  <button class="card amio" id="amioBtn">
+    <div class="t">💊 Amio / Lido</div>
+    <div class="v mono" id="amioNext">300mg</div>
+    <div class="sub">Next dose</div>
+    <div class="n mono" id="amioN">0</div>
+  </button>
+</section>
+
+<div class="last" id="lastEv">No events yet — tap any action to log it with a timestamp.</div>
+<div class="credit">Developed by Abdulaziz Aljuhani · Data stays on this device only</div>
+
+<nav class="bottom">
+  <div class="row">
+    <button data-open="meds"><span>💊</span>Meds</button>
+    <button data-open="events"><span>📋</span>Events</button>
+    <button data-open="comment"><span>💬</span>Comment</button>
+    <button data-open="ht"><span>🔍</span>H&amp;T</button>
+    <button data-open="notes"><span>📝</span>Notes</button>
+    <button data-open="settings"><span>⚙️</span>Settings</button>
+  </div>
+  <div class="row foot">
+    <button class="save" id="stopSave">⏹ Stop / Save</button>
+    <button id="resetBtn">↺ Reset</button>
+    <button id="muteBtn">🔇 Mute</button>
+    <button data-open="log">🧾 Log</button>
+  </div>
+</nav>
+
+<!-- Sheets -->
+<div class="sheet" id="sh-meds"><div class="box">
+  <h2>Code Medications</h2><p class="hint">Tap a dose to add it to the log.</p>
+  <div class="list" id="medList"></div>
+  <div style="margin-top:12px">
+    <input type="text" id="customDose" placeholder="Custom drug/dose... e.g. Adenosine 6mg">
+    <div class="actions"><button data-close>Back</button><button class="pri" id="addCustom">Add to log</button></div>
+  </div>
+</div></div>
+
+<div class="sheet" id="sh-events"><div class="box">
+  <h2>Quick Events</h2><p class="hint">Tap an event to log it with a timestamp.</p>
+  <div class="chips" id="evList"></div>
+  <div class="actions"><button data-close>Done</button></div>
+</div></div>
+
+<div class="sheet" id="sh-comment"><div class="box">
+  <h2>Add Comment</h2><p class="hint">Free text, timestamped into the log.</p>
+  <textarea id="commentTx" placeholder="Type your comment..."></textarea>
+  <div class="actions"><button data-close>Cancel</button><button class="pri" id="addComment">Add to log</button></div>
+</div></div>
+
+<div class="sheet" id="sh-ht"><div class="box">
+  <h2>Reversible Causes — Hs &amp; Ts</h2><p class="hint">Tap once = considered, twice = addressed.</p>
+  <div class="list" id="htList"></div>
+  <div class="actions"><button data-close>Done</button></div>
+</div></div>
+
+<div class="sheet" id="sh-notes"><div class="box">
+  <h2>Session Notes</h2><p class="hint">Not timestamped — included in the final report (team, location, etc.).</p>
+  <textarea id="notesTx" placeholder="Notes..."></textarea>
+  <div class="actions"><button class="pri" data-close>Done</button></div>
+</div></div>
+
+<div class="sheet" id="sh-settings"><div class="box">
+  <h2>Settings</h2><p class="hint">Standard ACLS Epi interval is every 3–5 minutes.</p>
+  <div class="set"><b>CPR cycle length</b><div class="ins"><input type="number" id="cprM" min="0" max="10"> : <input type="number" id="cprS" min="0" max="59"></div></div>
+  <div class="set"><b>Epi reminder interval</b><div class="ins"><input type="number" id="epiM" min="0" max="10"> : <input type="number" id="epiS" min="0" max="59"></div></div>
+  <div class="actions"><button data-close>Back</button><button class="pri" id="saveSet">Save</button></div>
+</div></div>
+
+<div class="sheet" id="sh-log"><div class="box">
+  <h2>Event Log</h2><p class="hint">A precise record of this session.</p>
+  <div class="log" id="logList"></div>
+  <div class="actions"><button data-close>Back</button><button id="undoBtn">Undo last event</button></div>
+</div></div>
+
+<div class="sheet" id="sh-report"><div class="box">
+  <h2>Session Report</h2>
+  <pre class="rep" id="repTx"></pre>
+  <div class="actions"><button data-close>Back</button><button class="pri" id="copyRep">📋 Copy Report</button></div>
+</div></div>
+
+<div class="sheet confirm" id="sh-confirm"><div class="box">
+  <h2 id="cfT">Confirm</h2><p class="hint" id="cfB"></p>
+  <div class="actions"><button data-close>Cancel</button><button class="dang" id="cfOk">Confirm</button></div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const MEDS=[
+ {n:"Epinephrine",d:"1mg IV/IO every 3–5 min",doses:["1mg"],epi:true},
+ {n:"Amiodarone",d:"VF/pVT: 300mg, then 150mg",doses:["300mg","150mg"],amio:true},
+ {n:"Lidocaine",d:"1–1.5 mg/kg, then 0.5–0.75 mg/kg",doses:["1 mg/kg","1.5 mg/kg","0.5 mg/kg"],amio:true},
+ {n:"Magnesium sulfate",d:"Torsades: 1–2g IV",doses:["1g","2g"]},
+ {n:"Calcium chloride 10%",d:"Hyperkalemia / toxicity",doses:["1g"]},
+ {n:"Sodium bicarbonate",d:"Acidosis / hyperkalemia",doses:["50 mEq"]},
+ {n:"Dextrose 50%",d:"Hypoglycemia",doses:["25g (50mL)"]},
+ {n:"Naloxone",d:"Opioid toxicity",doses:["0.4mg","2mg"]},
+ {n:"Normal saline bolus",d:"Hypovolemia",doses:["500mL","1L"]}
+];
+const EVENTS=["Pulse / rhythm check","ROSC","Re-arrest","Defib pads on","IV access","IO access","Intubated (ETT)","Supraglottic airway (iGel)","EtCO₂ measured","Compressor change","Physician arrived","Family informed","Transfer to ICU","Code ended / TOD"];
+const HT=["Hypovolemia","Hypoxia","Hydrogen ion (acidosis)","Hypo/Hyperkalemia","Hypothermia","Tension pneumothorax","Tamponade, cardiac","Toxins","Thrombosis, pulmonary","Thrombosis, coronary"];
+
+let S;
+function fresh(){return{inc:1,start:null,end:null,running:false,log:[],shock:0,lastShock:null,cprN:0,cprStart:null,epiN:0,epiAt:null,amioN:0,rhythm:null,ht:{},notes:"",cprLen:120,epiLen:240,audio:true,cprAlerted:false,epiAlerted:false};}
+function load(){try{const x=JSON.parse(localStorage.getItem("cprTimer")||"null");if(x)return Object.assign(fresh(),x);}catch(e){}return fresh();}
+function save(){try{localStorage.setItem("cprTimer",JSON.stringify(S));}catch(e){}}
+S=load();
+
+const pad=n=>String(n).padStart(2,"0");
+const fmt=ms=>{const s=Math.max(0,Math.floor(ms/1000));return pad(Math.floor(s/60))+":"+pad(s%60);};
+const clk=t=>{const d=new Date(t);return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds());};
+const now=()=>Date.now();
+const rel=t=>S.start?fmt(t-S.start):"--:--";
+
+function toast(m){const t=$("toast");t.textContent=m;t.classList.add("show");clearTimeout(t._h);t._h=setTimeout(()=>t.classList.remove("show"),1600);}
+
+let actx;
+function beep(pattern=[880,0,880]){
+  if(!S.audio)return;
+  try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    let t=actx.currentTime;
+    pattern.forEach(f=>{if(f){const o=actx.createOscillator(),g=actx.createGain();o.frequency.value=f;o.type="square";g.gain.setValueAtTime(.15,t);g.gain.exponentialRampToValueAtTime(.001,t+.18);o.connect(g);g.connect(actx.destination);o.start(t);o.stop(t+.2);}t+=.25;});
+  }catch(e){}
+  try{navigator.vibrate&&navigator.vibrate([200,100,200]);}catch(e){}
+}
+
+function ensureStarted(){if(!S.running&&!S.end){startTimer(true);}}
+function add(text,silent){
+  ensureStarted();
+  const t=now();S.log.push({t,text});save();render();
+  if(!silent)toast("✓ "+text);
+}
+
+function startTimer(auto){
+  if(S.end){return;}
+  S.running=true;
+  if(!S.start){S.start=now();S.log.push({t:S.start,text:"Resuscitation started"});}
+  save();render();
+}
+
+$("startBtn").onclick=()=>{
+  if(S.end){openReport();return;}
+  if(!S.running){startTimer();beep([660]);}
+  else confirmBox("End session?","The timer will stop and the report will be generated.",endCase);
+};
+document.querySelectorAll(".rh").forEach(b=>b.onclick=()=>{S.rhythm=b.dataset.r;add("Rhythm: "+b.dataset.r);});
+$("shockBtn").onclick=()=>{S.shock++;S.lastShock=now();add("Shock #"+S.shock+(S.rhythm?" ("+S.rhythm+")":""));};
+$("cprBtn").onclick=()=>{S.cprN++;S.cprStart=now();S.cprAlerted=false;add("CPR cycle #"+S.cprN);};
+$("epiBtn").onclick=()=>giveEpi("1mg");
+function giveEpi(dose){S.epiN++;S.epiAt=now();S.epiAlerted=false;add("Epinephrine "+dose+" — dose #"+S.epiN);}
+$("amioBtn").onclick=()=>{const d=S.amioN===0?"300mg":"150mg";giveAmio("Amiodarone "+d);};
+function giveAmio(txt){S.amioN++;add(txt+" — dose #"+S.amioN);}
+
+// meds
+$("medList").innerHTML=MEDS.map((m,i)=>`<div class="item"><div class="nm">${m.n}</div><div class="ds">${m.d}</div><div class="doses">${m.doses.map((d,j)=>`<button class="mono" data-m="${i}" data-d="${j}">${d}</button>`).join("")}</div></div>`).join("");
+$("medList").onclick=e=>{const b=e.target.closest("button[data-m]");if(!b)return;const m=MEDS[b.dataset.m],d=m.doses[b.dataset.d];
+  if(m.epi)giveEpi(d);else if(m.amio)giveAmio(m.n.split(" ")[0]+" "+d);else add(m.n+" "+d);};
+$("addCustom").onclick=()=>{const v=$("customDose").value.trim();if(!v)return;add("Med: "+v);$("customDose").value="";};
+
+// events
+$("evList").innerHTML=EVENTS.map((e,i)=>`<button data-e="${i}">${e}</button>`).join("");
+$("evList").onclick=e=>{const b=e.target.closest("button");if(!b)return;const ev=EVENTS[b.dataset.e];add(ev);
+  if(ev.startsWith("Code ended"))closeAll(),confirmBox("End session?","Code end time logged. Stop the timer and generate the report?",endCase);};
+
+// comment
+$("addComment").onclick=()=>{const v=$("commentTx").value.trim();if(!v)return;add("💬 "+v);$("commentTx").value="";closeAll();};
+
+// H&T
+function renderHT(){$("htList").innerHTML=HT.map((h,i)=>{const s=S.ht[i]||0;return `<button class="item ht" data-h="${i}"><span>${h}</span><span class="st ${s==1?"c":s==2?"a":""}">${s==1?"Considered":s==2?"Addressed":"—"}</span></button>`;}).join("");}
+$("htList").onclick=e=>{const b=e.target.closest("button");if(!b)return;const i=b.dataset.h;S.ht[i]=((S.ht[i]||0)+1)%3;
+  const s=S.ht[i];if(s)add((s==1?"Considered: ":"Addressed: ")+HT[i],true);save();renderHT();};
+
+// notes
+$("notesTx").oninput=()=>{S.notes=$("notesTx").value;save();};
+
+// settings
+function fillSet(){$("cprM").value=Math.floor(S.cprLen/60);$("cprS").value=S.cprLen%60;$("epiM").value=Math.floor(S.epiLen/60);$("epiS").value=S.epiLen%60;}
+$("saveSet").onclick=()=>{const c=(+$("cprM").value||0)*60+(+$("cprS").value||0),p=(+$("epiM").value||0)*60+(+$("epiS").value||0);
+  if(c<10||p<10){toast("Invalid value");return;}S.cprLen=c;S.epiLen=p;save();render();closeAll();toast("Saved");};
+
+// log
+function renderLog(){const l=$("logList");if(!S.log.length){l.innerHTML='<div class="empty">No events recorded</div>';return;}
+  l.innerHTML=S.log.slice().reverse().map(e=>`<div class="e"><span class="tm mono">${rel(e.t)}</span><span class="tm mono">${clk(e.t)}</span><span>${e.text}</span></div>`).join("");}
+$("undoBtn").onclick=()=>{if(S.log.length<=1){toast("Nothing to undo");return;}const x=S.log.pop();save();renderLog();render();toast("Removed: "+x.text);};
+
+// footer
+$("stopSave").onclick=()=>{if(!S.start){toast("Session not started yet");return;}if(S.end){openReport();return;}confirmBox("End session?","The timer will stop and the report will be generated.",endCase);};
+$("resetBtn").onclick=()=>confirmBox("Reset session?","This clears the log and counters and starts a new incident. Cannot be undone.",()=>{const inc=S.inc+(S.start?1:0),c=S.cprLen,p=S.epiLen,a=S.audio;S=fresh();S.inc=inc;S.cprLen=c;S.epiLen=p;S.audio=a;$("notesTx").value="";save();render();toast("New session");});
+function toggleAudio(){S.audio=!S.audio;save();render();if(S.audio)beep([660]);}
+$("muteBtn").onclick=toggleAudio;$("audioBtn").onclick=toggleAudio;
+
+function endCase(){S.end=now();S.running=false;S.log.push({t:S.end,text:"Session ended"});save();render();openReport();}
+
+function report(){
+  const end=S.end||now();
+  let r=`CPR SESSION REPORT — Incident ${pad(S.inc)}\n`;
+  r+=`Date: ${S.start?new Date(S.start).toLocaleDateString("en-GB"):"-"}\n`;
+  r+=`Start: ${S.start?clk(S.start):"-"}   End: ${S.end?clk(S.end):"(ongoing)"}\n`;
+  r+=`Total duration: ${S.start?fmt(end-S.start):"-"}\n\n`;
+  r+=`Summary:\n• Shocks: ${S.shock}\n• CPR cycles: ${S.cprN}\n• Epi doses: ${S.epiN}\n• Amio/Lido: ${S.amioN}\n• Last rhythm: ${S.rhythm||"-"}\n`;
+  const ht=HT.map((h,i)=>S.ht[i]?`• ${h}: ${S.ht[i]==1?"Considered":"Addressed"}`:null).filter(Boolean);
+  if(ht.length)r+=`\nHs & Ts:\n${ht.join("\n")}\n`;
+  if(S.notes.trim())r+=`\nNotes:\n${S.notes.trim()}\n`;
+  r+=`\nEvent log:\n`+S.log.map(e=>`[${rel(e.t)}] ${clk(e.t)} — ${e.text}`).join("\n");
+  return r;
+}
+function openReport(){$("repTx").textContent=report();openSheet("report");}
+$("copyRep").onclick=async()=>{const t=report();try{await navigator.clipboard.writeText(t);toast("Report copied");}catch(e){
+  const r=document.createRange();r.selectNodeContents($("repTx"));const s=getSelection();s.removeAllRanges();s.addRange(r);toast("Select the text and copy manually");}};
+
+// sheets
+function openSheet(n){closeAll();if(n==="ht")renderHT();if(n==="log")renderLog();if(n==="settings")fillSet();if(n==="notes")$("notesTx").value=S.notes;$("sh-"+n).classList.add("open");}
+function closeAll(){document.querySelectorAll(".sheet.open").forEach(s=>s.classList.remove("open"));}
+document.querySelectorAll("[data-open]").forEach(b=>b.onclick=()=>openSheet(b.dataset.open));
+document.querySelectorAll("[data-close]").forEach(b=>b.onclick=closeAll);
+document.querySelectorAll(".sheet").forEach(s=>s.onclick=e=>{if(e.target===s)closeAll();});
+let cfFn;function confirmBox(t,b,fn){closeAll();$("cfT").textContent=t;$("cfB").textContent=b;cfFn=fn;$("sh-confirm").classList.add("open");}
+$("cfOk").onclick=()=>{closeAll();cfFn&&cfFn();};
+
+function render(){
+  const t=now(),end=S.end||t;
+  $("incNo").textContent=pad(S.inc);
+  $("startClock").textContent=S.start?clk(S.start).slice(0,5):"--:--";
+  $("elapsed").textContent=S.start?fmt(end-S.start):"00:00";
+  $("hero").classList.toggle("running",S.running);
+  const sb=$("startBtn");
+  sb.textContent=S.end?"📄 View Report":S.running?"⏹ Stop":"▶ Start Timer";
+  sb.classList.toggle("stop",S.running);
+  document.querySelectorAll(".rh").forEach(b=>b.classList.toggle("active",b.dataset.r===S.rhythm));
+  $("shockN").textContent=S.shock;$("shockLast").textContent=S.lastShock?fmt(end-S.lastShock):"—";
+  // CPR
+  $("cprN").textContent=S.cprN;
+  if(S.cprStart){const rem=S.cprLen*1000-(end-S.cprStart);$("cprT").textContent=rem>0?fmt(rem):"+"+fmt(-rem);
+    $("cprBar").style.width=Math.min(100,(end-S.cprStart)/(S.cprLen*10))+"%";
+    $("cprBtn").classList.toggle("due",rem<=0&&!S.end);$("cprSub").textContent=rem<=0?"Rhythm check due!":"Cycle running";
+    if(rem<=0&&!S.cprAlerted&&S.running){S.cprAlerted=true;save();beep([880,0,880,0,880]);toast("⏰ CPR cycle done — check rhythm");}
+  }else{$("cprT").textContent=fmt(S.cprLen*1000);$("cprBar").style.width="0";$("cprBtn").classList.remove("due");$("cprSub").textContent="Tap to start a cycle";}
+  // Epi
+  $("epiN").textContent=S.epiN;
+  if(S.epiAt){const rem=S.epiLen*1000-(end-S.epiAt);$("epiT").textContent=rem>0?fmt(rem):"+"+fmt(-rem);
+    $("epiBar").style.width=Math.min(100,(end-S.epiAt)/(S.epiLen*10))+"%";
+    $("epiBtn").classList.toggle("due",rem<=0&&!S.end);$("epiSub").textContent=rem<=0?"Epi due now!":"Last dose "+fmt(end-S.epiAt);
+    if(rem<=0&&!S.epiAlerted&&S.running){S.epiAlerted=true;save();beep([1046,0,1046,0,1046]);toast("⏰ Epinephrine due");}
+  }else{$("epiT").textContent=fmt(S.epiLen*1000);$("epiBar").style.width="0";$("epiBtn").classList.remove("due");$("epiSub").textContent="Tap when dose given";}
+  $("amioN").textContent=S.amioN;$("amioNext").textContent=S.amioN===0?"300mg":S.amioN===1?"150mg":"—";
+  const a=$("audioBtn");a.textContent=S.audio?"🔊 AUDIO ON":"🔇 AUDIO OFF";a.classList.toggle("off",!S.audio);
+  $("muteBtn").textContent=S.audio?"🔇 Mute":"🔊 Unmute";
+  const last=S.log[S.log.length-1];
+  $("lastEv").innerHTML=last?`Last: <b>${last.text}</b> <span class="mono">(${rel(last.t)})</span>`:"No events yet — tap any action to log it with a timestamp.";
+}
+render();setInterval(render,250);
+</script>
+</body>
+</html>
